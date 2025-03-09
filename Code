@@ -1,0 +1,111 @@
+
+import io.github.bonigarcia.wdm.WebDriverManager;
+import org.junit.jupiter.api.*;
+import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+import java.time.Duration;
+
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class SauceDemoLoginTest {
+
+    private WebDriver driver;
+    private final String baseURL = "https://www.saucedemo.com/";
+
+    @BeforeAll
+    void setup() {
+        WebDriverManager.chromedriver().setup();
+        driver = new ChromeDriver();
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
+        driver.manage().window().maximize();
+    }
+
+    @BeforeEach
+    void navigateToLoginPage() {
+        driver.get(baseURL);
+    }
+
+    @Test
+    @DisplayName("✅ Valid Login Test")
+    void testValidLogin() {
+        try {
+            login("standard_user", "secret_sauce");
+            Assertions.assertTrue(driver.findElement(By.className("inventory_list")).isDisplayed(), "Login failed!");
+        } catch (Exception e) {
+            Assertions.fail("Exception during valid login test: " + e.getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("❌ Invalid Login Test - Wrong Password")
+    void testInvalidLoginWrongPassword() {
+        try {
+            login("standard_user", "wrong_password");
+            String errorMsg = getErrorMessage();
+            Assertions.assertEquals("Epic sadface: Username and password do not match any user in this service", errorMsg, "Wrong error message displayed!");
+        } catch (Exception e) {
+            Assertions.fail("Exception during invalid login test: " + e.getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("❌ Invalid Login Test - Wrong Username")
+    void testInvalidLoginWrongUsername() {
+        try {
+            login("wrong_user", "secret_sauce");
+            String errorMsg = getErrorMessage();
+            Assertions.assertEquals("Epic sadface: Username and password do not match any user in this service", errorMsg, "Wrong error message displayed!");
+        } catch (Exception e) {
+            Assertions.fail("Exception during invalid login test: " + e.getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("❌ Invalid Login Test - Empty Fields")
+    void testInvalidLoginEmptyFields() {
+        try {
+            login("", "");
+            String errorMsg = getErrorMessage();
+            Assertions.assertEquals("Epic sadface: Username is required", errorMsg, "Wrong error message displayed!");
+        } catch (Exception e) {
+            Assertions.fail("Exception during empty field login test: " + e.getMessage());
+        }
+    }
+
+    @AfterEach
+    void logoutIfNeeded() {
+        try {
+            if (driver.findElements(By.id("react-burger-menu-btn")).size() > 0) {
+                driver.findElement(By.id("react-burger-menu-btn")).click();
+                Thread.sleep(1000);
+                driver.findElement(By.id("logout_sidebar_link")).click();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    @AfterAll
+    void tearDown() {
+        if (driver != null) {
+            driver.quit();
+        }
+    }
+
+    private void login(String username, String password) {
+        try {
+            driver.findElement(By.id("user-name")).sendKeys(username);
+            driver.findElement(By.id("password")).sendKeys(password);
+            driver.findElement(By.id("login-button")).click();
+        } catch (NoSuchElementException e) {
+            throw new RuntimeException("Element not found: " + e.getMessage());
+        }
+    }
+
+    private String getErrorMessage() {
+        try {
+            return driver.findElement(By.cssSelector("[data-test='error']")).getText();
+        } catch (NoSuchElementException e) {
+            return "Error message not found!";
+        }
+    }
+}
